@@ -1,0 +1,15 @@
+resol = 128
+axion_mass (kg) = 1.783e-58
+length (code units) = 10
+duration (code units) = 0.1
+start_time (code units) = 0.0
+step_factor  = 1.0
+central_mass (code units) = 0.0
+
+solitons ([mass, [x, y, z], [vx, vy, vz], phase]): 
+soliton0 = [8, [2, 0, 0], [-20, 0, 0], 0]
+soliton1 = [9, [-2, 0, 0], [20, 0, 0], 0]
+
+s_mass_unit = , s_position_unit = , s_velocity_unit = 
+
+Note: If the above units are blank, this means that the soliton parameters were specified in code units
