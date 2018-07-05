@@ -1,0 +1,11 @@
+*.pyc
+*.npy
+*.hdf5
+*.npz
+.ipynb_checkpoints
+*.mp4
+*.html
+*.jpg
+*.eps
+TestOutput/**
+
