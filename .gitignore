@@ -1,8 +1,0 @@
-*.pyc
-*.npy
-*.hdf5
-*.npz
-.ipynb_checkpoints
-#TestOutput/**
-#Visualisations/**
-
