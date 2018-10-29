@@ -206,6 +206,86 @@ def initsoliton(funct, xarray, yarray, zarray, position, alpha, f, delta_x):
     return funct
 
 
+def save_grid(
+        rho, psi, resol,
+        save_options,
+        npy, npz, hdf5,
+        loc, ix, its_per_save,
+        ):
+
+        """
+        Save various properties of the various grids in various formats
+        """
+
+        save_num = int((ix + 1) / its_per_save)
+
+        if (save_options[0]):
+            if (npy):
+                file_name = "rho_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    rho
+                )
+            if (npz):
+                file_name = "rho_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    rho
+                )
+            if (hdf5):
+                file_name = "rho_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=rho)
+                f.close()
+        if (save_options[2]):
+            plane = rho[:, :, int(resol / 2)]
+            if (npy):
+                file_name = "plane_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    plane
+                )
+            if (npz):
+                file_name = "plane_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    plane
+                )
+            if (hdf5):
+                file_name = "plane_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=plane)
+                f.close()
+        if (save_options[1]):
+            if (npy):
+                file_name = "psi_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    psi
+                )
+            if (npz):
+                file_name = "psi_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    psi
+                )
+            if (hdf5):
+                file_name = "psi_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=psi)
+                f.close()
+        if (save_options[4]):
+            line = rho[:, int(resol / 2), int(resol / 2)]
+            file_name2 = "line_#{0}.npy".format(save_num)
+            np.save(
+                os.path.join(os.path.expanduser(loc), file_name2),
+                line
+            )
+
+
 
 ######################### FUNCTION TO INITIALIZE SOLITONS AND EVOLVE
 
@@ -444,52 +524,12 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
 
     ##########################################################################################
     # PRE-LOOP SAVE I.E. INITIAL CONFIG
-
-    if (save_options[0]):
-        if (npy):
-            file_name = "rho_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), rho)
-        if (npz):
-            file_name = "rho_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), rho)
-        if (hdf5):
-            file_name = "rho_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=rho)
-            f.close()
-    if (save_options[2]):
-        plane = rho[:, :, int(resol / 2)]
-        if (npy):
-            file_name = "plane_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), plane)
-        if (npz):
-            file_name = "plane_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), plane)
-        if (hdf5):
-            file_name = "plane_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=plane)
-            f.close()
-    if (save_options[1]):
-        if (npy):
-            file_name = "psi_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), psi)
-        if (npz):
-            file_name = "psi_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), psi)
-        if (hdf5):
-            file_name = "psi_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=psi)
-            f.close()
-    if (save_options[4]):
-        line = rho[:, int(resol / 2), int(resol / 2)]
-        file_name2 = "line_#{0}.npy".format(0)
-        np.save(os.path.join(os.path.expanduser(loc), file_name2), line)
-        
+    save_grid(
+            rho, psi, resol,
+            save_options,
+            npy, npz, hdf5,
+            loc, -1, 1,
+    )
 
 
     ##########################################################################################
@@ -524,7 +564,7 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         phisp = ne.evaluate("phisp-(cmass)/distarray")
 
         #Next if statement ensures that an extra half step is performed at each save point
-        if (((ix + 1) % its_per_save) == 0):
+        if (((ix + 1) % its_per_save) == 0) and halfstepornot == 0:
             psi = ne.evaluate("exp(-1j*0.5*h*phisp)*psi")
             rho = ne.evaluate("real(abs(psi)**2)")
             halfstepornot = 1
@@ -573,52 +613,14 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
 
         ################################################################################
         # SAVE DESIRED OUTPUTS
+        if ((ix + 1) % its_per_save) == 0:
 
-        if (save_options[0] and ((ix + 1) % its_per_save) == 0):
-            if (npy):
-                file_name = "rho_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), rho)
-            if (npz):
-                file_name = "rho_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), rho)
-            if (hdf5):
-                file_name = "rho_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=rho)
-                f.close()
-        if (save_options[2] and ((ix + 1) % its_per_save) == 0):
-            plane = rho[:, :, int(resol / 2)]
-            if (npy):
-                file_name = "plane_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), plane)
-            if (npz):
-                file_name = "plane_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), plane)
-            if (hdf5):
-                file_name = "plane_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=plane)
-                f.close()
-        if (save_options[1] and ((ix + 1) % its_per_save) == 0):
-            if (npy):
-                file_name = "psi_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), psi)
-            if (npz):
-                file_name = "psi_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), psi)
-            if (hdf5):
-                file_name = "psi_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=psi)
-                f.close()
-        if (save_options[4] and ((ix + 1) % its_per_save) == 0):
-            line = rho[:, int(resol/2), int(resol / 2)]
-            file_name2 = "line_#{0}.npy".format(int((ix + 1) / its_per_save))
-            np.save(os.path.join(os.path.expanduser(loc), file_name2), line)
-
+            save_grid(
+                    rho, psi, resol,
+                    save_options,
+                    npy, npz, hdf5,
+                    loc, ix, its_per_save,
+            )
 
 
         ################################################################################
