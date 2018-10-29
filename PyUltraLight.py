@@ -286,6 +286,41 @@ def save_grid(
             )
 
 
+def calculate_energies(
+        save_options, resol,
+        psi, cmass, distarray, Vcell, phisp, karray2, funct,
+        fft_psi, ifft_funct,
+        egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+        ):
+        if (save_options[3]):
+
+            egyarr = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64')
+
+            # Gravitational potential energy density associated with the central potential
+            egyarr = ne.evaluate('real((abs(psi))**2)')
+            egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
+            egpcmlist.append(Vcell * np.sum(egyarr))
+            tot = Vcell * np.sum(egyarr)
+
+            # Gravitational potential energy density of self-interaction of the condensate
+            egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
+            egpsilist.append(Vcell * np.sum(egyarr))
+            tot = tot + Vcell * np.sum(egyarr)
+
+            # TODO: Does this reuse the memory of funct?  That is the
+            # intention, but likely isn't what is happening
+            funct = fft_psi(psi)
+            funct = ne.evaluate('-karray2*funct')
+            funct = ifft_funct(funct)
+            egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
+            ekandqlist.append(Vcell * np.sum(egyarr))
+            tot = tot + Vcell * np.sum(egyarr)
+
+            egylist.append(tot)
+
+            egyarr = ne.evaluate('real((abs(psi))**2)')
+            mtotlist.append(Vcell * np.sum(egyarr))
+
 
 ######################### FUNCTION TO INITIALIZE SOLITONS AND EVOLVE
 
@@ -496,30 +531,13 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         egpsilist = []
         ekandqlist = []
         mtotlist = []
-        egyarr = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64')
 
-        egyarr = ne.evaluate('real((abs(psi))**2)')
-        egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
-        egpcmlist.append(Vcell * np.sum(egyarr))
-        tot = Vcell * np.sum(egyarr)
-
-        egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
-        egpsilist.append(Vcell * np.sum(egyarr))
-        tot = tot + Vcell * np.sum(egyarr)
-
-        funct = fft_psi(psi)
-        funct = ne.evaluate('-karray2*funct')
-        #ifft_calc = pyfftw.builders.ifftn(calc, axes=(0, 1, 2), threads=num_threads)
-        funct = ifft_funct(funct)
-        egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
-        ekandqlist.append(Vcell * np.sum(egyarr))
-        tot = tot + Vcell * np.sum(egyarr)
-
-        egylist.append(tot)
-
-        egyarr = ne.evaluate('real((abs(psi))**2)')
-        mtotlist.append(Vcell * np.sum(egyarr))
-
+        calculate_energies(
+            save_options, resol,
+            psi, cmass, distarray, Vcell, phisp, karray2, funct,
+            fft_psi, ifft_funct,
+            egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+        )
 
 
     ##########################################################################################
@@ -569,46 +587,28 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
             rho = ne.evaluate("real(abs(psi)**2)")
             halfstepornot = 1
 
-        #Next block calculates the energies at each save, not at each timestep.
-            if (save_options[3]):
+            #Next block calculates the energies at each save, not at each timestep.
+            calculate_energies(
+                save_options, resol,
+                psi, cmass, distarray, Vcell, phisp, karray2, funct,
+                fft_psi, ifft_funct,
+                egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+            )
 
-                # Gravitational potential energy density associated with the central potential
-                egyarr = ne.evaluate('real((abs(psi))**2)')
-                egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
-                egpcmlist.append(Vcell * np.sum(egyarr))
-                tot = Vcell * np.sum(egyarr)
+            #Uncomment next section if partially complete energy lists desired as simulation runs.
+            #In this way, some energy data will be saved even if the simulation is terminated early.
 
-                # Gravitational potential energy density of self-interaction of the condensate
-                egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
-                egpsilist.append(Vcell * np.sum(egyarr))
-                tot = tot + Vcell * np.sum(egyarr)
-
-                funct = fft_psi(psi)
-                funct = ne.evaluate('-karray2*funct')
-                funct = ifft_funct(funct)
-                egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
-                ekandqlist.append(Vcell * np.sum(egyarr))
-                tot = tot + Vcell * np.sum(egyarr)
-
-                egylist.append(tot)
-
-                egyarr = ne.evaluate('real((abs(psi))**2)')
-                mtotlist.append(Vcell * np.sum(egyarr))
-
-
-        #Uncomment next section if partially complete energy lists desired as simulation runs.
-        #In this way, some energy data will be saved even if the simulation is terminated early.
-
-                # if (ix+1) % tenth == 0:
-                #     label = (ix+1)/tenth
-                #     file_name = "{}{}".format(label,'egy_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egylist)
-                #     file_name = "{}{}".format(label,'egpcm_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egpcmlist)
-                #     file_name = "{}{}".format(label,'egpsi_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egpsilist)
-                #     file_name = "{}{}".format(label,'ekandq_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), ekandqlist)
+            # if (save_options[3]):
+            #     if (ix+1) % tenth == 0:
+            #         label = (ix+1)/tenth
+            #         file_name = "{}{}".format(label,'egy_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egylist)
+            #         file_name = "{}{}".format(label,'egpcm_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egpcmlist)
+            #         file_name = "{}{}".format(label,'egpsi_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egpsilist)
+            #         file_name = "{}{}".format(label,'ekandq_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), ekandqlist)
 
 
         ################################################################################
