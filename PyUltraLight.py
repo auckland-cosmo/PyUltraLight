@@ -206,6 +206,121 @@ def initsoliton(funct, xarray, yarray, zarray, position, alpha, f, delta_x):
     return funct
 
 
+def save_grid(
+        rho, psi, resol,
+        save_options,
+        npy, npz, hdf5,
+        loc, ix, its_per_save,
+        ):
+
+        """
+        Save various properties of the various grids in various formats
+        """
+
+        save_num = int((ix + 1) / its_per_save)
+
+        if (save_options[0]):
+            if (npy):
+                file_name = "rho_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    rho
+                )
+            if (npz):
+                file_name = "rho_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    rho
+                )
+            if (hdf5):
+                file_name = "rho_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=rho)
+                f.close()
+        if (save_options[2]):
+            plane = rho[:, :, int(resol / 2)]
+            if (npy):
+                file_name = "plane_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    plane
+                )
+            if (npz):
+                file_name = "plane_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    plane
+                )
+            if (hdf5):
+                file_name = "plane_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=plane)
+                f.close()
+        if (save_options[1]):
+            if (npy):
+                file_name = "psi_#{0}.npy".format(save_num)
+                np.save(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    psi
+                )
+            if (npz):
+                file_name = "psi_#{0}.npz".format(save_num)
+                np.savez(
+                    os.path.join(os.path.expanduser(loc), file_name),
+                    psi
+                )
+            if (hdf5):
+                file_name = "psi_#{0}.hdf5".format(save_num)
+                file_name = os.path.join(os.path.expanduser(loc), file_name)
+                f = h5py.File(file_name, 'w')
+                dset = f.create_dataset("init", data=psi)
+                f.close()
+        if (save_options[4]):
+            line = rho[:, int(resol / 2), int(resol / 2)]
+            file_name2 = "line_#{0}.npy".format(save_num)
+            np.save(
+                os.path.join(os.path.expanduser(loc), file_name2),
+                line
+            )
+
+
+def calculate_energies(
+        save_options, resol,
+        psi, cmass, distarray, Vcell, phisp, karray2, funct,
+        fft_psi, ifft_funct,
+        egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+        ):
+        if (save_options[3]):
+
+            egyarr = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64')
+
+            # Gravitational potential energy density associated with the central potential
+            egyarr = ne.evaluate('real((abs(psi))**2)')
+            egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
+            egpcmlist.append(Vcell * np.sum(egyarr))
+            tot = Vcell * np.sum(egyarr)
+
+            # Gravitational potential energy density of self-interaction of the condensate
+            egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
+            egpsilist.append(Vcell * np.sum(egyarr))
+            tot = tot + Vcell * np.sum(egyarr)
+
+            # TODO: Does this reuse the memory of funct?  That is the
+            # intention, but likely isn't what is happening
+            funct = fft_psi(psi)
+            funct = ne.evaluate('-karray2*funct')
+            funct = ifft_funct(funct)
+            egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
+            ekandqlist.append(Vcell * np.sum(egyarr))
+            tot = tot + Vcell * np.sum(egyarr)
+
+            egylist.append(tot)
+
+            egyarr = ne.evaluate('real((abs(psi))**2)')
+            mtotlist.append(Vcell * np.sum(egyarr))
+
 
 ######################### FUNCTION TO INITIALIZE SOLITONS AND EVOLVE
 
@@ -416,80 +531,23 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         egpsilist = []
         ekandqlist = []
         mtotlist = []
-        egyarr = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64')
 
-        egyarr = ne.evaluate('real((abs(psi))**2)')
-        egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
-        egpcmlist.append(Vcell * np.sum(egyarr))
-        tot = Vcell * np.sum(egyarr)
-
-        egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
-        egpsilist.append(Vcell * np.sum(egyarr))
-        tot = tot + Vcell * np.sum(egyarr)
-
-        funct = fft_psi(psi)
-        funct = ne.evaluate('-karray2*funct')
-        #ifft_calc = pyfftw.builders.ifftn(calc, axes=(0, 1, 2), threads=num_threads)
-        funct = ifft_funct(funct)
-        egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
-        ekandqlist.append(Vcell * np.sum(egyarr))
-        tot = tot + Vcell * np.sum(egyarr)
-
-        egylist.append(tot)
-
-        egyarr = ne.evaluate('real((abs(psi))**2)')
-        mtotlist.append(Vcell * np.sum(egyarr))
-
+        calculate_energies(
+            save_options, resol,
+            psi, cmass, distarray, Vcell, phisp, karray2, funct,
+            fft_psi, ifft_funct,
+            egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+        )
 
 
     ##########################################################################################
     # PRE-LOOP SAVE I.E. INITIAL CONFIG
-
-    if (save_options[0]):
-        if (npy):
-            file_name = "rho_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), rho)
-        if (npz):
-            file_name = "rho_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), rho)
-        if (hdf5):
-            file_name = "rho_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=rho)
-            f.close()
-    if (save_options[2]):
-        plane = rho[:, :, int(resol / 2)]
-        if (npy):
-            file_name = "plane_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), plane)
-        if (npz):
-            file_name = "plane_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), plane)
-        if (hdf5):
-            file_name = "plane_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=plane)
-            f.close()
-    if (save_options[1]):
-        if (npy):
-            file_name = "psi_#{0}.npy".format(0)
-            np.save(os.path.join(os.path.expanduser(loc), file_name), psi)
-        if (npz):
-            file_name = "psi_#{0}.npz".format(0)
-            np.savez(os.path.join(os.path.expanduser(loc), file_name), psi)
-        if (hdf5):
-            file_name = "psi_#{0}.hdf5".format(0)
-            file_name = os.path.join(os.path.expanduser(loc), file_name)
-            f = h5py.File(file_name, 'w')
-            dset = f.create_dataset("init", data=psi)
-            f.close()
-    if (save_options[4]):
-        line = rho[:, int(resol / 2), int(resol / 2)]
-        file_name2 = "line_#{0}.npy".format(0)
-        np.save(os.path.join(os.path.expanduser(loc), file_name2), line)
-        
+    save_grid(
+            rho, psi, resol,
+            save_options,
+            npy, npz, hdf5,
+            loc, -1, 1,
+    )
 
 
     ##########################################################################################
@@ -524,101 +582,45 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         phisp = ne.evaluate("phisp-(cmass)/distarray")
 
         #Next if statement ensures that an extra half step is performed at each save point
-        if (((ix + 1) % its_per_save) == 0):
+        if (((ix + 1) % its_per_save) == 0) and halfstepornot == 0:
             psi = ne.evaluate("exp(-1j*0.5*h*phisp)*psi")
             rho = ne.evaluate("real(abs(psi)**2)")
             halfstepornot = 1
 
-        #Next block calculates the energies at each save, not at each timestep.
-            if (save_options[3]):
+            #Next block calculates the energies at each save, not at each timestep.
+            calculate_energies(
+                save_options, resol,
+                psi, cmass, distarray, Vcell, phisp, karray2, funct,
+                fft_psi, ifft_funct,
+                egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+            )
 
-                # Gravitational potential energy density associated with the central potential
-                egyarr = ne.evaluate('real((abs(psi))**2)')
-                egyarr = ne.evaluate('real((-cmass/distarray)*egyarr)')
-                egpcmlist.append(Vcell * np.sum(egyarr))
-                tot = Vcell * np.sum(egyarr)
+            #Uncomment next section if partially complete energy lists desired as simulation runs.
+            #In this way, some energy data will be saved even if the simulation is terminated early.
 
-                # Gravitational potential energy density of self-interaction of the condensate
-                egyarr = ne.evaluate('real(0.5*(phisp+(cmass)/distarray)*real((abs(psi))**2))')
-                egpsilist.append(Vcell * np.sum(egyarr))
-                tot = tot + Vcell * np.sum(egyarr)
-
-                funct = fft_psi(psi)
-                funct = ne.evaluate('-karray2*funct')
-                funct = ifft_funct(funct)
-                egyarr = ne.evaluate('real(-0.5*conj(psi)*funct)')
-                ekandqlist.append(Vcell * np.sum(egyarr))
-                tot = tot + Vcell * np.sum(egyarr)
-
-                egylist.append(tot)
-
-                egyarr = ne.evaluate('real((abs(psi))**2)')
-                mtotlist.append(Vcell * np.sum(egyarr))
-
-
-        #Uncomment next section if partially complete energy lists desired as simulation runs.
-        #In this way, some energy data will be saved even if the simulation is terminated early.
-
-                # if (ix+1) % tenth == 0:
-                #     label = (ix+1)/tenth
-                #     file_name = "{}{}".format(label,'egy_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egylist)
-                #     file_name = "{}{}".format(label,'egpcm_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egpcmlist)
-                #     file_name = "{}{}".format(label,'egpsi_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), egpsilist)
-                #     file_name = "{}{}".format(label,'ekandq_cumulative.npy')
-                #     np.save(os.path.join(os.path.expanduser(loc), file_name), ekandqlist)
+            # if (save_options[3]):
+            #     if (ix+1) % tenth == 0:
+            #         label = (ix+1)/tenth
+            #         file_name = "{}{}".format(label,'egy_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egylist)
+            #         file_name = "{}{}".format(label,'egpcm_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egpcmlist)
+            #         file_name = "{}{}".format(label,'egpsi_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), egpsilist)
+            #         file_name = "{}{}".format(label,'ekandq_cumulative.npy')
+            #         np.save(os.path.join(os.path.expanduser(loc), file_name), ekandqlist)
 
 
         ################################################################################
         # SAVE DESIRED OUTPUTS
+        if ((ix + 1) % its_per_save) == 0:
 
-        if (save_options[0] and ((ix + 1) % its_per_save) == 0):
-            if (npy):
-                file_name = "rho_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), rho)
-            if (npz):
-                file_name = "rho_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), rho)
-            if (hdf5):
-                file_name = "rho_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=rho)
-                f.close()
-        if (save_options[2] and ((ix + 1) % its_per_save) == 0):
-            plane = rho[:, :, int(resol / 2)]
-            if (npy):
-                file_name = "plane_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), plane)
-            if (npz):
-                file_name = "plane_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), plane)
-            if (hdf5):
-                file_name = "plane_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=plane)
-                f.close()
-        if (save_options[1] and ((ix + 1) % its_per_save) == 0):
-            if (npy):
-                file_name = "psi_#{0}.npy".format(int((ix + 1) / its_per_save))
-                np.save(os.path.join(os.path.expanduser(loc), file_name), psi)
-            if (npz):
-                file_name = "psi_#{0}.npz".format(int((ix + 1) / its_per_save))
-                np.savez(os.path.join(os.path.expanduser(loc), file_name), psi)
-            if (hdf5):
-                file_name = "psi_#{0}.hdf5".format(int((ix + 1) / its_per_save))
-                file_name = os.path.join(os.path.expanduser(loc), file_name)
-                f = h5py.File(file_name, 'w')
-                dset = f.create_dataset("init", data=psi)
-                f.close()
-        if (save_options[4] and ((ix + 1) % its_per_save) == 0):
-            line = rho[:, int(resol/2), int(resol / 2)]
-            file_name2 = "line_#{0}.npy".format(int((ix + 1) / its_per_save))
-            np.save(os.path.join(os.path.expanduser(loc), file_name2), line)
-
+            save_grid(
+                    rho, psi, resol,
+                    save_options,
+                    npy, npz, hdf5,
+                    loc, ix, its_per_save,
+            )
 
 
         ################################################################################
