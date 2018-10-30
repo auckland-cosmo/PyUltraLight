@@ -287,15 +287,10 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
     # SET UP THE REAL SPACE COORDINATES OF THE GRID
 
     gridvec = np.linspace(-gridlength / 2.0 + gridlength / float(2 * resol), gridlength / 2.0 - gridlength / float(2 * resol), resol)
-
-    xarray = np.ones((resol, 1, 1))
-    yarray = np.ones((1, resol, 1))
-    zarray = np.ones((1, 1, resol))
-
-    xarray[:, 0, 0] = gridvec
-    yarray[0, :, 0] = gridvec
-    zarray[0, 0, :] = gridvec
-
+    xarray, yarray, zarray = np.meshgrid(
+        gridvec, gridvec, gridvec,
+        sparse=True, indexing='ij',
+    )
     distarray = ne.evaluate("(xarray**2+yarray**2+zarray**2)**0.5") # Radial coordinates
 
 
@@ -304,12 +299,10 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
     # SET UP K-SPACE COORDINATES FOR COMPLEX DFT (NOT RHO DFT)
 
     kvec = 2 * np.pi * np.fft.fftfreq(resol, gridlength / float(resol))
-    kxarray = np.ones((resol, 1, 1))
-    kyarray = np.ones((1, resol, 1))
-    kzarray = np.ones((1, 1, resol))
-    kxarray[:, 0, 0] = kvec
-    kyarray[0, :, 0] = kvec
-    kzarray[0, 0, :] = kvec
+    kxarray, kyarray, kzarray = np.meshgrid(
+        kvec, kvec, kvec,
+        sparse=True, indexing='ij',
+    )
     karray2 = ne.evaluate("kxarray**2+kyarray**2+kzarray**2")
 
 
@@ -382,12 +375,11 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
 
     rkvec = 2 * np.pi * np.fft.fftfreq(resol, gridlength / float(resol))
     krealvec = 2 * np.pi * np.fft.rfftfreq(resol, gridlength / float(resol))
-    rkxarray = np.ones((resol, 1, 1))
-    rkyarray = np.ones((1, resol, 1))
-    rkzarray = np.ones((1, 1, int(resol / 2) + 1))  # last dimension smaller because of reality condition
-    rkxarray[:, 0, 0] = rkvec
-    rkyarray[0, :, 0] = rkvec
-    rkzarray[0, 0, :] = krealvec
+    rkxarray, rkyarray, rkzarray = np.meshgrid(
+        rkvec, rkvec, krealvec,
+        sparse=True, indexing='ij'
+    )
+
     rkarray2 = ne.evaluate("rkxarray**2+rkyarray**2+rkzarray**2")
 
     rfft_rho = pyfftw.builders.rfftn(rho, axes=(0, 1, 2), threads=num_threads)
