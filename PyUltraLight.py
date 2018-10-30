@@ -195,8 +195,11 @@ def overlap_check(candidate, soliton):
 def initsoliton(funct, xarray, yarray, zarray, position, alpha, f, delta_x):
     for index in np.ndindex(funct.shape):
         # Note also that this distfromcentre is here to calculate the distance of every gridpoint from the centre of the soliton, not to calculate the distance of the soliton from the centre of the grid
-        distfromcentre = ((xarray[index[0], 0, 0] - position[0]) ** 2 + (yarray[0, index[1], 0] - position[1]) ** 2 + (
-        zarray[0, 0, index[2]] - position[2]) ** 2) ** 0.5
+        distfromcentre = (
+            (xarray[index[0], 0, 0] - position[0]) ** 2 +
+            (yarray[0, index[1], 0] - position[1]) ** 2 +
+            (zarray[0, 0, index[2]] - position[2]) ** 2
+        ) ** 0.5
         # Utilises soliton profile array out to dimensionless radius 5.6.
         if (np.sqrt(alpha) * distfromcentre <= 5.6):
             funct[index] = alpha * f[int(np.sqrt(alpha) * (distfromcentre / delta_x + 1))]
