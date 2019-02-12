@@ -577,10 +577,11 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         phisp = ne.evaluate("phisp-(cmass)/distarray")
 
         #Next if statement ensures that an extra half step is performed at each save point
-        if (((ix + 1) % its_per_save) == 0) and halfstepornot == 0:
-            psi = ne.evaluate("exp(-1j*0.5*h*phisp)*psi")
-            rho = ne.evaluate("real(abs(psi)**2)")
-            halfstepornot = 1
+        if (((ix + 1) % its_per_save) == 0):
+            if halfstepornot == 0:
+                psi = ne.evaluate("exp(-1j*0.5*h*phisp)*psi")
+                rho = ne.evaluate("real(abs(psi)**2)")
+                halfstepornot = 1
 
             #Next block calculates the energies at each save, not at each timestep.
             calculate_energies(
