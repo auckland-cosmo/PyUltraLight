@@ -583,12 +583,13 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
             halfstepornot = 1
 
             #Next block calculates the energies at each save, not at each timestep.
-            calculate_energies(
-                save_options, resol,
-                psi, cmass, distarray, Vcell, phisp, karray2, funct,
-                fft_psi, ifft_funct,
-                egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
-            )
+            if (save_options[3]):
+                calculate_energies(
+                    save_options, resol,
+                    psi, cmass, distarray, Vcell, phisp, karray2, funct,
+                    fft_psi, ifft_funct,
+                    egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
+                )
 
             #Uncomment next section if partially complete energy lists desired as simulation runs.
             #In this way, some energy data will be saved even if the simulation is terminated early.
