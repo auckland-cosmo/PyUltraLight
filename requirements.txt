@@ -1,0 +1,6 @@
+numpy
+numexpr
+numba
+h5py
+pyfftw
+matplotlib
