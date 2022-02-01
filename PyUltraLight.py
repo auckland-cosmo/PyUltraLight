@@ -502,7 +502,7 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
 
     rfft_rho = pyfftw.builders.rfftn(rho, axes=(0, 1, 2), threads=num_threads)
     phik = rfft_rho(rho)  # not actually phik but phik is defined in next line
-    phik = ne.evaluate("-4*3.141593*phik/rkarray2")
+    phik = ne.evaluate("-4*np.pi*phik/rkarray2")
     phik[0, 0, 0] = 0
     irfft_phi = pyfftw.builders.irfftn(phik, axes=(0, 1, 2), threads=num_threads)
 
