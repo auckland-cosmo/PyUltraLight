@@ -571,7 +571,7 @@ def evolve(central_mass, num_threads, length, length_units, resol, duration, dur
         psi = ifft_funct(funct)
         rho = ne.evaluate("real(abs(psi)**2)")
         phik = rfft_rho(rho)  # not actually phik but phik is defined on next line
-        phik = ne.evaluate("-4*3.141593*(phik)/rkarray2")
+        phik = ne.evaluate("-4*np.pi*(phik)/rkarray2")
         phik[0, 0, 0] = 0
         phisp = irfft_phi(phik)
         phisp = ne.evaluate("phisp-(cmass)/distarray")
