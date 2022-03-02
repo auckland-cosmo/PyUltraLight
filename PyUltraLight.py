@@ -86,7 +86,7 @@ def convert(value, unit, type):
         elif (unit == 'Myr'):
             converted = value * 60 * 60 * 24 * 365 * 1e6 / time_unit
         else:
-            raise NameError('Unsupported mass unit used')
+            raise NameError('Unsupported time unit used')
 
     elif (type == 'v'):
         if (unit == ''):
